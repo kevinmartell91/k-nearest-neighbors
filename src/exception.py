@@ -1,6 +1,6 @@
 # all the exceptions are caught by the sys library
 import sys
-import logger
+# import logger
 import logging
 
 def error_message_details(error, error_detail:sys):
