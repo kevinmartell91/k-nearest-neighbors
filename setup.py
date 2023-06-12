@@ -16,11 +16,10 @@ def get_requirements(file_path: str) -> List[str]:
             requirements.remove(HYPEN_E_DOT)
 
 setup(
-    name= 'k-nearest-neighbor',
+    name= 'machine-learning-algorithms',
     version= '0.0.1',
     author='Kevin Martell Luya',
     author_email= 'kevinmartell91@gmail.com',
     packages= find_packages(),
     install_requires= get_requirements('requirements.txt')
-    #['pandas','numpy','matplotlib']
 )
