@@ -185,7 +185,7 @@ def load_dataset(dataset_name):
             dataset_info = DIC_DATASETS_INFO[DATASET.WINE]
             
         case DATASET.VOTE:
-            df = pd.read_csv(os.path.join(DATASETS_PATH,"votes.csv"))
+            df = pd.read_csv(os.path.join(DATASETS_PATH,"vote.csv"))
             dataset_info = DIC_DATASETS_INFO[DATASET.VOTE]
         
         case DATASET.CANCER:
@@ -314,7 +314,7 @@ def label_stratified_folds(df, k, dataset_name):
         # to one particular k-fold value 
         for j in range(k):
 
-            k_fold_label = j + 1
+            k_fold_label = j + 1 
     
             # traverse each dynamic range: lower and upper bound
             for i in range(low_range, upper_range):
@@ -474,6 +474,74 @@ def plot_confusion_matrix(TP,FN,FP,TN):
     cm_display.plot()
     plt.show()
 
+# def preprocess_data_set(df, dataset_info):
+def trasform_data_set(df, dataset_info):
+    """ Returns a dataframe with transformed attributes
+    
+    Expects: 
+        df: a dataframe where the attribute are read from.
+        dataset_info: an object that holds the attribute types (numerical or categorical).
+    Modifies: 
+        It normalize and perform one hot enconding technique to 
+        numerical and categorical attributes respectively.
+    Returns:
+        df: a dataframe with transformed attributes. If categorical attributes are
+            present, the shape of the df will be greater than the original dataframe.
+        classes: an array with unique classes of the dataframe.
+        num_classes: a number with the number of unique classes of the df.
+    """
+    
+    num_classes = len(np.bincount(df.iloc[:,-2]))
+    classes = np.unique(df[TARGET_COLUMN])
+    
+    target = df.iloc[:,df.columns == TARGET_COLUMN]
+    target_one_hot_enc = pd.get_dummies(target,
+                                        columns=[TARGET_COLUMN],
+                                        dtype=int)
+    k_fold = df.iloc[:,df.columns == K_FOLD]
+    
+
+    match dataset_info[ATTR_TYPE]:
+        case ATTRIBUTE_TYPE.NUMERICAL:
+            
+            num_attr = df.iloc[:, 0:-2]
+            df_norm = normalize(num_attr)
+            df = pd.concat([df_norm, target_one_hot_enc, target, k_fold],axis=1)
+
+            if dataset_info[NAME] == DATASET.WINE: ## global variable
+                num_classes = num_classes  -1 # from [0,1,2,3] to [1,2,3] class 0 removed
+            
+        case ATTRIBUTE_TYPE.CATEGORICAL:
+            
+            columns = df.columns[0:-2].values
+            attr_one_hot_enc = pd.get_dummies(df.iloc[:,0:-2],columns=columns, dtype=int)
+            df = pd.concat([attr_one_hot_enc, target_one_hot_enc, target, k_fold],axis=1)
+            
+        case ATTRIBUTE_TYPE.NUMERICAL_AND_CATEGORICAL:
+            
+            df_preprocessed_data = pd.DataFrame()
+            
+            # do not traverse tha last who columns(target and k-fold)
+            for attr_name in dataset_info[ATTRIBUTES]:
+                if ( not dataset_info[ATTRIBUTES][attr_name]["delete"] ):
+                    
+                    # for numerical attributes base on the attribute data type
+                    if  ATTRIBUTE_TYPE.NUMERICAL == dataset_info[ATTRIBUTES][attr_name]["type"]:
+                        df_norm_attr = normalize(df.iloc[:, df.columns == attr_name])
+                        df_preprocessed_data = pd.concat([df_preprocessed_data, df_norm_attr], axis=1)
+
+                    # for categorical attributes base on the attribute data type
+                    else:
+                        df_one_hot_encoded = pd.get_dummies(df.iloc[:, df.columns == attr_name],
+                                                            columns=[attr_name],
+                                                            dtype=int)
+                        df_preprocessed_data = pd.concat([df_preprocessed_data, df_one_hot_encoded],axis =1)
+            df = pd.concat([df_preprocessed_data, target, k_fold], axis =1)
+            
+
+    return (df, classes, num_classes)
+
+
 # def preprocess_trn_data_set(df, dataset_info, num_class):
 def attr_label_trn_split(df, num_class):
     """ Returns a X train and y train dataframes.
@@ -586,19 +654,23 @@ def normalize(X):
     Returns:
         df: a dataframe with normalized features 
     """
-    
     col_names = X.columns
     X = X.values
+
     # iterate throug all columns but class column
     norm_col = None
     for col in range(X.shape[1]):
         if X[:, col].max()  == 0:
-            norm_col = np.zeros((len(X), ), dtype= int)
+            norm_col = np.zeros((len(X), ), dtype= float)
         else :
             norm_col = (X[:,col] - X[:,col].min())/(X[:,col].max() - X[:,col].min())
         X[:, col] = norm_col
-        
-    df = pd.DataFrame(X)
+
+    if X.shape[1] == 1: # if the X has one column
+        df = pd.DataFrame(norm_col)
+    else: # if the X has more than one column
+        df = pd.DataFrame(X)
+
     df.columns = col_names
     
     return df
