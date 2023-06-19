@@ -2,4 +2,6 @@ pandas
 numpy
 matplotlib
 scikit-learn
+tqdm
+dill
 # -e .

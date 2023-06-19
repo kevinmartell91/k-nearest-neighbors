@@ -68,23 +68,8 @@ class DataTransformation:
             (df, classes, num_classes) = trasform_data_set(stratfied_folds, dataset_info)
             logging.info("Data transformation completed")
             
-            return (df, classes, num_classes)
+            return (df, classes, num_classes, dataset_info)
 
         except Exception as e:
             raise CustomException(e, sys)
 
-from src.utils import DATASET
-from src.components.data_ingestion import DataIngestion
-if __name__=="__main__":
-    try:
-        data_ingestion = DataIngestion()
-        (_, 
-        stratified_fold_path, 
-        dataset_info_json_path) = data_ingestion.init_data_ingestion(DATASET.LOAN)
-
-        data_transformation = DataTransformation()
-        (df, classes, num_classes) = data_transformation.initiate_data_transformation(stratified_fold_path, dataset_info_json_path)
-        
-    except Exception as e:
-        raise CustomException(e, sys)
-    

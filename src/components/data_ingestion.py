@@ -33,7 +33,7 @@ class DataIngestion:
         """
         self.ingestion_config = DataIngestionConfig()
 
-    def init_data_ingestion(self, dataset_name):
+    def init_data_ingestion(self, dataset_name, num_folds):
         """ Returns raw and stratified fold paths after data ingestion
 
         Expects:
@@ -53,7 +53,7 @@ class DataIngestion:
             os.makedirs(os.path.dirname(self.ingestion_config.raw_path), exist_ok=True)
             df.to_csv(self.ingestion_config.raw_path, index=False, header=True)
 
-            df = label_stratified_folds(df, 10 ,dataset_name)
+            df = label_stratified_folds(df, num_folds ,dataset_name)
             logging.info("Stratified folds labeling complete")
 
             df.to_csv(self.ingestion_config.stratified_folds_path, index=False, header=True)

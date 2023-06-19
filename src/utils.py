@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
-from sklearn import datasets 
 import numpy as np 
 import matplotlib. pyplot as plt
-from src.logger import logging
 import os
+import sys
+import dill
+
+from src.exception import CustomException
+from src.logger import logging
 
 K_FOLD = "k_fold"
 TARGET_COLUMN = "target"
@@ -16,6 +19,17 @@ DATASETS_PATH = os.path.join(os.getcwd(),"notebooks","datasets")
 # an array that holds raw target names with respect to all datasets
 RAW_TARGET_NAMES = [
     "# class", "class", "Class", "Loan_Status", "Diagnosis", "Survived", 64]
+
+class MODE:
+    TRAIN = "train"
+    TEST = "test"
+    BREIF = "breif"
+    PRODUCTION = "production"
+    PRINT = "print"
+    NO_CHAIN_W_UPDATE = "no_chain_w_update"
+    TEST_CHAIN_W_UPDATE = "test_chain_w_update"
+    VERIFICATION = "verification"
+
 
 class DATASET:
     """
@@ -448,10 +462,8 @@ def create_confusion_matrix(y_true, y_pred, classes):
         add_flag = 0
     
     matrix = [ [0 for j in range(len(classes))] for i in range(len(classes))]
-
     for i in range(len(y_pred)):
         matrix[y_true[i] - add_flag ][y_pred[i] - add_flag] += 1
-
     return matrix
 
 
@@ -569,21 +581,20 @@ def attr_label_trn_split(df, num_class):
     
     return (X_trn, y_trn)
 
-# def preprocess_tst_data_set(df, dataset_info, num_class):
-def attr_label_tst_split(df, num_class):
-    """ Returns X test, y test, and 1D array labels from dataframes.
+def attr_label_trn_split(df, num_class):
+    """ Returns a X train and y train dataframes.
 
     Expects: 
-        df: a dataframe that represents the test set
+        df: a dataframe that represents the train set.
         num_class: an integer with number of classes.
     Modifies:
         Nothing.
     Returns: 
-        X_tst: a ndarray of arrays with test set attributes.
-        y_tst: a ndarray of arrays with test set labels.
-        y_trues: a 1D array of test set labels.
+        X_trn: a ndarray of arrays with train set attributes.
+        y_trn: a ndarray of arrays with train set labels.
     """
-    X_tst = y_tst = y_trues = None
+
+    X_trn = y_trn = None
     # lower_limit: number of column we do not need to process 
     # from the end th beginnig of the df
     lower_limit = upper_limit = 2 
@@ -591,14 +602,41 @@ def attr_label_tst_split(df, num_class):
     # to get a limit to process attribute only
     lower_limit += num_class 
     # cut the ranges we care for each set
-    X_tst = df.iloc[:, 0:-lower_limit].values
-    y_tst = df.iloc[:, -lower_limit : -upper_limit].values
+    X_trn = df.iloc[:, 0:-lower_limit].values
+    y_trn = df.iloc[:, -lower_limit : -upper_limit].values
+    
+    return (X_trn, y_trn)
+
+# def preprocess_tst_data_set(df, dataset_info, num_class):
+def attr_label_split(df, num_class):
+    """ Returns X , y , and 1D array labels from dataframes.
+
+    Expects: 
+        df: a dataframe that represents the test set
+        num_class: an integer with number of classes.
+    Modifies:
+        Nothing.
+    Returns: 
+        X: a ndarray of arrays with data set attributes.
+        y: a ndarray of arrays with data set labels.
+        y_trues: a 1D array of data set labels.
+    """
+    X = y = y_trues = None
+    # lower_limit: number of column we do not need to process 
+    # from the end th beginnig of the df
+    lower_limit = upper_limit = 2 
+    # increment the number of column by the number of classes 
+    # to get a limit to process attribute only
+    lower_limit += num_class 
+    # cut the ranges we care for each set
+    X = df.iloc[:, 0:-lower_limit].values
+    y = df.iloc[:, -lower_limit : -upper_limit].values
 
     # return y_trues as well for the confusion matrix
     target = df.iloc[:,df.columns == TARGET_COLUMN].values
     y_trues = target.reshape((target.shape[0]),)
     
-    return (X_tst, y_tst, y_trues)
+    return (X, y, y_trues)
 
 def get_y_preds_based_on_dataset(y_preds, dataset_info):
     """ Returns predictions that matches the unique labels of the dataset.
@@ -675,3 +713,77 @@ def normalize(X):
     
     return df
 
+def evaluate_models(dataset_obj, models, params, cross_validation=False, mode=MODE.TRAIN):
+    """ Returns a report with the highest accuracy of each model
+    
+    Expects:
+        dataset_obj: an object that contains: the dataframe, unique clases, number
+            of classes, and dataframe information.
+        models: an array with the models or algorithms.
+        params: an object with hyperparameters.
+        cross_validation: a boolean whether the cross-validation is perfomed.
+        mode: a str that represent the mode: how this method behave.
+    Modifies:
+        It sets the model's parameters with the best hyper-parameter.
+    Returns:
+        report: an object with the highest accuracies per model
+    """
+
+    try:
+
+        df = dataset_obj["df"]
+        # classes = dataset_obj["classes"]
+        # num_classes = dataset_obj["num_classes"]
+        # dataset_info = dataset_obj["dataset_info"]
+        
+        report = {}
+        report_best_params = {}
+        cv = 2 # min number of cross validation
+        if cross_validation:
+            # get max cross validataion value from K-fold column
+            cv = np.max(df.iloc[:,df.columns == K_FOLD])
+
+        for i in range(len(list(models))):
+            # get the model ith
+            model = list(models.values())[i]
+            # get parameter ith
+            parameters = list(params.values())[i]
+            # get the best model parameters 
+            best_params = model.grid_search_cv(dataset_obj, parameters, cv, mode=mode) # TRAIN or BREIF
+            # set model with best parameters
+            model.set_params(best_params)
+            # fit and predict (cross validation with the best params)
+            model_acc = model.init_cross_validation(dataset_obj, cv, mode=MODE.TEST)
+
+            # add the accuracy model to the report
+            report[list(models.keys())[i]] = model_acc
+            report_best_params[list(models.keys())[i]] = best_params
+
+        return (report, best_params)
+
+    except Exception as e:
+        raise CustomException(e, sys)
+
+def save_to_pkl(file_path, obj):
+    """ Save and object in pkl. format
+    
+    Expects:
+        file_path: a string with the file path where to store the pkl. file
+        obj: an object that is intended to be stored.
+    Modifies:
+        Nothing.
+    Returns:
+        Nothing.
+    """
+
+    try:
+        dir_path = os.path.dirname(file_path)
+
+        os.makedirs(dir_path,exist_ok=True)
+
+        with open(file_path, "wb") as f:
+            dill.dump(obj, f)
+
+    except Exception as e:
+        raise CustomException(e, sys)
+    
