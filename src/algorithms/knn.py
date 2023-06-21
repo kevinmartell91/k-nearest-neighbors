@@ -21,7 +21,7 @@ class KNearestNeighborConfig:
 
 class KNearestNeighbor:
     """
-    A class with an attribute that set the KNearestNeighborConfig
+    A class with an attribute that sets the KNearestNeighborConfig
     """
 
     def __init__(self):
@@ -163,7 +163,7 @@ class KNearestNeighbor:
             raise CustomException(e, sys)
 
     def init_cross_validation(self, dataset_obj, cv, mode=MODE.TRAIN):
-        """ Returns the average accuracy of the cross validations
+        """ Returns the average accuracy of the stratified cross validations
         
         Expects:
             dataset_obj: an object that contains: the dataframe, unique clases, number
@@ -172,7 +172,7 @@ class KNearestNeighbor:
             mode: a str that represent the mode: how this method behave.
         Modifies:
             Nothing.
-        Returns: the average accuracy
+        Returns: the average accuracy of the stratified cross validations
         """
 
         k_accuracies = 0   

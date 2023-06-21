@@ -722,7 +722,6 @@ def evaluate_models(dataset_obj, models, params, cross_validation=False, mode=MO
         models: an array with the models or algorithms.
         params: an object with hyperparameters.
         cross_validation: a boolean whether the cross-validation is perfomed.
-        mode: a str that represent the mode: how this method behave.
     Modifies:
         It sets the model's parameters with the best hyper-parameter.
     Returns:
@@ -730,14 +729,13 @@ def evaluate_models(dataset_obj, models, params, cross_validation=False, mode=MO
     """
 
     try:
-
         df = dataset_obj["df"]
         # classes = dataset_obj["classes"]
         # num_classes = dataset_obj["num_classes"]
         # dataset_info = dataset_obj["dataset_info"]
         
-        report = {}
-        report_best_params = {}
+        report_model_accuracies = {}
+        report_model_best_params = {}
         cv = 2 # min number of cross validation
         if cross_validation:
             # get max cross validataion value from K-fold column
@@ -756,10 +754,10 @@ def evaluate_models(dataset_obj, models, params, cross_validation=False, mode=MO
             model_acc = model.init_cross_validation(dataset_obj, cv, mode=MODE.TEST)
 
             # add the accuracy model to the report
-            report[list(models.keys())[i]] = model_acc
-            report_best_params[list(models.keys())[i]] = best_params
+            report_model_accuracies[list(models.keys())[i]] = model_acc
+            report_model_best_params[list(models.keys())[i]] = best_params
 
-        return (report, best_params)
+        return (report_model_accuracies, report_model_best_params)
 
     except Exception as e:
         raise CustomException(e, sys)
